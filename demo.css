@@ -10,3 +10,22 @@
         width: 100vw;
         height: 100vh;
     }
+
+
+    .flat{
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid #417297;
+        border-left: none;
+        border-right: none;
+        height: 100px;
+        width: 100px;
+    }
+
+     .three-div{
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid #417297;
+        border-left: none;
+        border-right: none;
+        height: 100px;
+        width: 100px;
+    }

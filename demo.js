@@ -3,8 +3,19 @@ import 'three-trackballcontrols'
 import OrbitControls from 'three-orbitcontrols'
 import $ from 'jquery'
 import { drawThreeGeo } from './libs/threeGeoJSON.js'
+import './libs/CSS3DRenderer.js'
+import Stats from './libs/stats.min.js'
+
 
 // import Ribbon from './ribbonEffect.js'
+// 
+const CONFIG = {
+  WIDTH: window.innerWidth,
+  HEIGHT: window.innerHeight,
+  DEVICE_PIXEL_RATIO: window.devicePixelRatio,
+  FLAT_NUM: 6,
+  FLAT_RADIUS: 400
+}
 
 const canvas = document.getElementById('sphere')
 
@@ -12,26 +23,54 @@ const clock = new THREE.Clock()
 
 const scene = new THREE.Scene()
 
+const stats = new Stats()
+stats.domElement.style.position = 'absolute' //绝对坐标  
+stats.domElement.style.left = '0px'// (0,0)px,左上角  
+stats.domElement.style.top = '0px'
+canvas.appendChild(stats.domElement);
+
 // 设置相机
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 1, 1000)
+const camera = new THREE.PerspectiveCamera(75, CONFIG.WIDTH / CONFIG.HEIGHT, 1, 1000)
 camera.position.z = 600
 camera.position.x = 0
 camera.position.y = 100
 camera.lookAt(0, 0, 0)
 
 // 设置渲染器
-const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true })
-renderer.setPixelRatio(window.devicePixelRatio)
-renderer.setSize(window.innerWidth, window.innerHeight)
+const renderer = new THREE.WebGLRenderer({antialias: true })
+renderer.setPixelRatio(CONFIG.DEVICE_PIXEL_RATIO)
+renderer.setSize(CONFIG.WIDTH, CONFIG.HEIGHT)
+canvas.appendChild(renderer.domElement)
 
 
 // 设置控制器
 const controls = new OrbitControls(camera)
-controls.maxPolarAngle = Math.PI / 2
-controls.minPolarAngle = Math.PI / 2
+// controls.maxPolarAngle = Math.PI / 2
+// controls.minPolarAngle = Math.PI / 2
 controls.autoRotate = true
 
 
+//CSS3D Scene
+const css3DScene = new THREE.Scene();
+
+//HTML
+for (let i = 0; i < CONFIG.FLAT_NUM; i++) {
+  const flatElement = document.createElement('div')
+  flatElement.className = 'flat'
+  const flat = new THREE.CSS3DObject(flatElement)
+  flat.position.x = Math.cos(i * (2 * Math.PI / CONFIG.FLAT_NUM)) * CONFIG.FLAT_RADIUS
+  flat.position.z = Math.sin(i * (2 * Math.PI / CONFIG.FLAT_NUM)) * CONFIG.FLAT_RADIUS
+  flat.rotation.y = -( i * (2 * Math.PI / CONFIG.FLAT_NUM) - Math.PI / 2)
+  flat.position.y = 0
+  css3DScene.add(flat)
+} 
+
+//CSS3D Renderer
+const css3DRenderer = new THREE.CSS3DRenderer();
+css3DRenderer.setSize(CONFIG.WIDTH, CONFIG.HEIGHT);
+css3DRenderer.domElement.style.position = 'absolute';
+css3DRenderer.domElement.style.top = 0;
+canvas.appendChild(css3DRenderer.domElement);
 
 // 粒子系统
 const particleCount = 400
@@ -59,6 +98,32 @@ particleSystem.sortParticles = true
 scene.add(particleSystem)
 
 
+// 波浪点阵
+const WAVE= {
+  COUNT_X: 100,
+  COUNT_Y: 100,
+  SEPARATION: 20,
+  RANGE: 5
+}
+
+const waveParticles = new THREE.Group()
+const waveArray = []
+let waveAnimeCount = 0
+const waveParticleGeo = new THREE.SphereGeometry(1, 10, 10)
+const waveParticleMat = new THREE.MeshLambertMaterial({color: 0xffffff})
+
+for(let ix = 0; ix < WAVE.COUNT_X; ix++) {
+  for(let iy = 0; iy < WAVE.COUNT_Y; iy++) {
+    const waveParticle = new THREE.Mesh(waveParticleGeo, waveParticleMat)
+    waveParticle.position.x = ix * WAVE.SEPARATION - ((WAVE.COUNT_X * WAVE.SEPARATION) / 2)
+    waveParticle.position.y = iy * WAVE.SEPARATION - ((WAVE.COUNT_Y * WAVE.SEPARATION) / 2)
+    waveParticles.add(waveParticle)
+    waveArray.push(waveParticle)
+  }
+}
+waveParticles.rotation.x = - Math.PI / 2
+waveParticles.position.y = -300
+scene.add(waveParticles)
 
 // ------------------- 地球 ---------------
 
@@ -68,11 +133,12 @@ scene.add(particleSystem)
 const globe = new THREE.Group()
 
 const innerGlobeGeo = new THREE.SphereGeometry(200, 200, 100)
-const innerGlobeMat = new THREE.MeshPhongMaterial({
+const innerGlobeMat = new THREE.MeshLambertMaterial({
     color: 0x222222,
-    transparent: true,
+    // transparent: true,
     shininess: 1000,
-    // wireframe: true
+    // wireframe: true,
+    shading: THREE.FlatShading
 })
 const innerGlobe = new THREE.Object3D()
 innerGlobe.add(new THREE.Mesh(innerGlobeGeo, innerGlobeMat))
@@ -87,7 +153,7 @@ $.getJSON("./test_geojson/pop_places.geojson", function(data) {
         color: 0x00d0ea
     }, innerGlobe)
 })
-// globe.add(innerGlobe)
+globe.add(innerGlobe)
 
 // 环线层
 const lineGlobeGeo = new THREE.SphereGeometry(200, 200, 200)
@@ -106,29 +172,20 @@ scene.add(globe)
 
 
 
-const carousel = new THREE.Group()
-
-const flatGeo = new THREE.PlaneGeometry(100, 100, 32)
-const flatMat = new THREE.MeshLambertMaterial({color: 0xffffff})
-const flat = new THREE.Mesh(flatGeo, flatMat)
-flat.doubleSided = true
-
-scene.add(flat)
-
-
 // --------------------- 光线 -------------------
 // 环境光
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.75)
 scene.add(ambientLight)
 
 // 两极渲染光
-const polarLight = new THREE.HemisphereLight(0x00d0ea, 0x6200DE, .4)
+const polarLight = new THREE.HemisphereLight(0x00d0ea, 0x6200DE, .45)
 scene.add(polarLight)
+
 
 const pointLight = new THREE.PointLight(0xffffff, 20, 10)
 pointLight.add(
   new THREE.Mesh(
-    new THREE.SphereGeometry(2, 32, 32), 
+    new THREE.SphereGeometry(3, 32, 32), 
     new THREE.MeshBasicMaterial({color: 0xffffff})
   )
 )
@@ -137,18 +194,34 @@ scene.add(pointLight)
 
 
 const pointLightAnimation = () => {
-    const time = Date.now() * 0.0005
-    pointLight.position.x = Math.sin(time * 4) * 150;
-    pointLight.position.y = Math.cos(time * 4) * 200;
-    pointLight.position.z = Math.cos(time * 4) * 200;
+  const time = Date.now() * 0.0005
+  pointLight.position.x = Math.sin(time * 4) * 150;
+  pointLight.position.y = Math.cos(time * 4) * 200;
+  pointLight.position.z = Math.cos(time * 4) * 200;
+}
+
+const waveAnimation = () => {
+  let i = 0
+  for(let ix = 0; ix < WAVE.COUNT_X; ix++) {
+    for(let iy = 0; iy < WAVE.COUNT_Y; iy++) {
+      const waveParticle = waveArray[i++] 
+      waveParticle.position.z = ( Math.sin( ( ix + waveAnimeCount ) * 0.3 ) * WAVE.RANGE ) + ( Math.sin( ( iy + waveAnimeCount ) * 0.5 ) * WAVE.RANGE )
+      waveParticle.scale.x = waveParticle.scale.y = waveParticle.scale.z = ( Math.sin( ( ix + waveAnimeCount ) * 0.3 ) + 1 ) * 0.5 + ( Math.sin( ( iy + waveAnimeCount ) * 0.5 ) + 1 ) * 0.5;
+    }
+  }
+  waveAnimeCount += 0.1
 }
 
 // 渲染
 function render() {
     controls.update()
+    stats.update()
     pointLightAnimation()
-    requestAnimationFrame(render)
+    waveAnimation()
     renderer.render(scene, camera)
+    css3DRenderer.render(css3DScene, camera)
+    requestAnimationFrame(render)
+
 }
 
 $(window).on('resize', () => {
@@ -156,3 +229,8 @@ $(window).on('resize', () => {
 })
 
 render()
+
+
+
+
+  
