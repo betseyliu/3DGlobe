@@ -14,9 +14,11 @@
     "jquery": "^3.2.1",
     "require": "^2.4.20",
     "requirejs": "^2.3.4",
+    "stats-js": "^1.0.0-alpha1",
     "three": "^0.87.1",
     "three-orbitcontrols": "^1.2.1",
-    "three-trackballcontrols": "0.0.5"
+    "three-trackballcontrols": "0.0.5",
+    "tween.js": "^16.6.0"
   },
   "devDependencies": {
     "babel-core": "^6.26.0",
