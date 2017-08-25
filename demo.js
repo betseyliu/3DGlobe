@@ -1,240 +1,345 @@
 import * as THREE from 'three'
-import 'three-trackballcontrols'
 import OrbitControls from 'three-orbitcontrols'
 import $ from 'jquery'
 import { drawThreeGeo } from './libs/threeGeoJSON'
-import './libs/CSS3DRenderer'
 import Stats from './libs/stats.min'
-import 'tween.js'
+import TWEEN from 'tween'
 
 
-// import Ribbon from './ribbonEffect.js'
-
-const CONFIG = {
-  WIDTH: window.innerWidth,
-  HEIGHT: window.innerHeight,
-  DEVICE_PIXEL_RATIO: window.devicePixelRatio,
-  FLAT_NUM: 6,
-  FLAT_RADIUS: 400,
+// 一些使用到的配置
+const config = {
+  width: window.innerWidth,
+  height: window.innerHeight,
+  devicePixelRatio: window.devicePixelRatio,
+  canvas: document.body,
+  flatSrcMap: ['./resource/flat_img_placeholder.png',
+    './resource/flat_img_placeholder.png',
+    './resource/flat_img_placeholder.png',
+    './resource/flat_img_placeholder.png',
+    './resource/flat_img_placeholder.png',
+    './resource/flat_img_placeholder.png',
+    ]
 }
 
-const canvas = document.getElementById('sphere')
+//====================== 静态函数  =======================
 
-const scene = new THREE.Scene()
-
-// 性能监控
-const stats = new Stats()
-stats.domElement.style.position = 'absolute'
-stats.domElement.style.left = '0px'
-stats.domElement.style.top = '0px'
-canvas.appendChild(stats.domElement)
-
-// 设置相机
-const camera = new THREE.PerspectiveCamera(75, CONFIG.WIDTH / CONFIG.HEIGHT, 1, 1000)
-camera.position.z = 600
-camera.position.x = 0
-camera.position.y = 100
-camera.lookAt(0, 0, 0)
-
-// 设置渲染器
-const renderer = new THREE.WebGLRenderer({ antialias: true })
-renderer.setPixelRatio(CONFIG.DEVICE_PIXEL_RATIO)
-renderer.setSize(CONFIG.WIDTH, CONFIG.HEIGHT)
-canvas.appendChild(renderer.domElement)
-
-
-// 设置控制器
-const controls = new OrbitControls(camera)
-// controls.maxPolarAngle = Math.PI / 2
-// controls.minPolarAngle = Math.PI / 2
-// controls.autoRotate = true
-
-
-// CSS3D 场景
-const css3DScene = new THREE.Scene()
-
-// flat dom 结构
-for (let i = 0; i < CONFIG.FLAT_NUM; i++) {
-  const flatElement = document.createElement('div')
-  flatElement.className = 'flat'
-  const flat = new THREE.CSS3DObject(flatElement)
-  flat.position.x = Math.cos(i * (2 * Math.PI / CONFIG.FLAT_NUM)) * CONFIG.FLAT_RADIUS
-  flat.position.z = Math.sin(i * (2 * Math.PI / CONFIG.FLAT_NUM)) * CONFIG.FLAT_RADIUS
-  flat.rotation.y = -( i * (2 * Math.PI / CONFIG.FLAT_NUM) - Math.PI / 2)
-  flat.position.y = 0
-  css3DScene.add(flat)
+const handleResize = () => {
+    const height = window.innerHeight
+    const width = window.innerWidth
+    webGLRenderer.setSize(width, height)
+    camera.aspect = width / height
+    camera.updateProjectionMatrix()
 }
-
-// CSS3D Renderer
-const css3DRenderer = new THREE.CSS3DRenderer()
-css3DRenderer.setSize(CONFIG.WIDTH, CONFIG.HEIGHT)
-css3DRenderer.domElement.style.position = 'absolute'
-css3DRenderer.domElement.style.top = 0
-canvas.appendChild(css3DRenderer.domElement)
-
-// 粒子系统
-const particleCount = 400
-const particles = new THREE.Geometry()
-const pMaterial = new THREE.PointsMaterial({
-  color: 0xFFFFFF,
-  size: 1,
-  blending: THREE.AdditiveBlending,
-  transparent: true,
-})
-
-for (let p = 0; p < particleCount; p++) {
-  const pX = Math.random() * 1000 - 500
-  const pY = Math.random() * 1000 - 500
-  const pZ = Math.random() * 1000 - 500
-  const particle = new THREE.Vector3(pX, pY, pZ)
-  particles.vertices.push(particle)
-}
-
-const particleSystem = new THREE.Points(particles, pMaterial)
-particleSystem.sortParticles = true
-scene.add(particleSystem)
-
-
-// 波浪点阵
-const WAVE = {
-  COUNT_X: 100,
-  COUNT_Y: 100,
-  SEPARATION: 20,
-  RANGE: 5,
-}
-
-const waveParticles = new THREE.Group()
-const waveArray = []
-let waveAnimeCount = 0
-const waveParticleGeo = new THREE.IcosahedronGeometry(1, 0)
-const waveParticleMat = new THREE.MeshPhongMaterial({ color: 0xffffff })
-
-for (let ix = 0; ix < WAVE.COUNT_X; ix++) {
-  for (let iy = 0; iy < WAVE.COUNT_Y; iy++) {
-    const waveParticle = new THREE.Mesh(waveParticleGeo, waveParticleMat)
-    waveParticle.position.x = ix * WAVE.SEPARATION - ((WAVE.COUNT_X * WAVE.SEPARATION) / 2)
-    waveParticle.position.y = iy * WAVE.SEPARATION - ((WAVE.COUNT_Y * WAVE.SEPARATION) / 2)
-    waveParticles.add(waveParticle)
-    waveArray.push(waveParticle)
-  }
-}
-waveParticles.rotation.x = -Math.PI / 2
-waveParticles.position.y = -300
-scene.add(waveParticles)
-
-// ------------------- 地球 ---------------
-
-// 构造地球
-// 地表层 + 地形层
-const globe = new THREE.Group()
-
-const innerGlobeGeo = new THREE.SphereGeometry(200, 200, 100)
-const innerGlobeMat = new THREE.MeshLambertMaterial({
-  color: 0x222222,
-  // transparent: true,
-  shininess: 1000,
-  // wireframe: true,
-  // shading: THREE.FlatShading,
-  castShadow: true,
-})
-const innerGlobe = new THREE.Object3D()
-innerGlobe.add(new THREE.Mesh(innerGlobeGeo, innerGlobeMat))
-
-$.getJSON('./test_geojson/countries_states.geojson', (data) => {
-  drawThreeGeo(data, 201, 'sphere', {
-    color: 0x00d0ea,
-  }, innerGlobe)
-})
-$.getJSON('./test_geojson/pop_places.geojson', (data) => {
-  drawThreeGeo(data, 201, 'sphere', {
-    color: 0x00d0ea,
-  }, innerGlobe)
-})
-globe.add(innerGlobe)
-
-// 环线层
-const lineGlobeGeo = new THREE.SphereGeometry(200, 200, 200)
-const lineGlobeMat = new THREE.MeshPhongMaterial({
-  color: 0x333333,
-  transparent: true,
-  wireframe: true,
-})
-const lineGlobe = new THREE.Object3D()
-lineGlobe.add(new THREE.Mesh(lineGlobeGeo, lineGlobeMat))
-globe.add(lineGlobe)
-
-globe.rotation.z = -Math.PI / 6
-scene.add(globe)
-
-
-// --------------------- 光线 -------------------
-// 环境光
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.75)
-scene.add(ambientLight)
-
-// 两极渲染光
-const polarLight = new THREE.HemisphereLight(0x00d0ea, 0x6200DE, 1)
-scene.add(polarLight)
-
-
-const pointLight = new THREE.PointLight(0xffffff, 30, 10)
-pointLight.add(
-  new THREE.Mesh(
-    new THREE.SphereGeometry(10, 32, 32),
-    new THREE.MeshBasicMaterial({ color: 0xffffff }),
-  ))
-scene.add(pointLight)
-
-// const createSpotLight = (color) => {
-//   const spotLight = new THREE.SpotLight(color, 10)
-//   spotLight.angle = 0.4
-//   spotLight.penumbra = 0.2
-//   spotLight.decay = 10
-//   spotLight.distance = 100
-//   return spotLight
-// }
-// const spotLight1 = createSpotLight(0xFF7F00)
-// spotLight1.position.set(0, -200, 0)
-// spotLight1.target.position.set(0, -300, 0)
-
-// spotLight1.target.updateMatrixWorld()
-// const spotLightHelper1 = new THREE.SpotLightHelper(spotLight1)
-// scene.add(spotLight1)
-// scene.add(spotLightHelper1)
-
-
-const pointLightAnimation = () => {
-  const time = Date.now() * 0.0005
-  pointLight.position.x = Math.sin(time * 2) * 150
-  pointLight.position.y = Math.cos(time * 2) * 200
-  pointLight.position.z = Math.cos(time * 2) * 200
-}
-
-const waveAnimation = () => {
-  let i = 0
-  for (let ix = 0; ix < WAVE.COUNT_X; ix++) {
-    for (let iy = 0; iy < WAVE.COUNT_Y; iy++) {
-      const waveParticle = waveArray[i++]
-      waveParticle.position.z = (Math.sin((ix + waveAnimeCount) * 0.3) * WAVE.RANGE) + (Math.sin((iy + waveAnimeCount) * 0.5) * WAVE.RANGE)
-      waveParticle.scale.x = waveParticle.scale.y = waveParticle.scale.z = (Math.sin((ix + waveAnimeCount) * 0.3) + 1) * 0.5 + (Math.sin((iy + waveAnimeCount) * 0.5) + 1) * 0.5
-    }
-  }
-  waveAnimeCount += 0.1
-}
-
-// 渲染
-function render() {
+const render = () => {
+  // 更新控制器
   controls.update()
+  // 更新性能监控
   stats.update()
-  pointLightAnimation()
-  waveAnimation()
-  renderer.render(scene, camera)
-  css3DRenderer.render(css3DScene, camera)
+  // 更新粒子海洋动画
+  wave.animate()
+  // 更新缓动动画
+  TWEEN.update()
+  // 进行渲染
+  webGLRenderer.render(webGLScene, camera)
   requestAnimationFrame(render)
 }
 
-$(window).on('resize', () => {
-  renderer.setSize(window.innerWidth, window.innerHeight())
-})
+const moveCameraToFlat = ({flat, dist, time}) => {
+  const fx = flat.position.x
+  const fz = flat.position.z
+  const angle = Math.atan(Math.abs(fz / fx))
 
+  const dx = fx > 0 ? Math.cos(angle) * dist : 0 - Math.cos(angle) * dist 
+  const dz = fz > 0 ? Math.sin(angle) * dist : 0 - Math.sin(angle) * dist 
+
+  const tween = new TWEEN.Tween(camera.position)
+                         .to({
+                            x: fx + dx,
+                            y: 0,
+                            z: fz + dz
+                          }, time)
+                         .easing(TWEEN.Easing.Exponential.InOut)
+  return tween
+}
+
+const chooseFlat = (event) => {
+  event.preventDefault()
+  mouse.x = ( event.clientX / window.innerWidth ) * 2 - 1;
+  mouse.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
+  raycaster.setFromCamera( mouse, camera )
+  const choosenFlat = raycaster.intersectObjects(carousel.mesh.children)[0]  && raycaster.intersectObjects(carousel.mesh.children)[0].object
+  if(choosenFlat) {
+    cameraPos = {
+      x: camera.position.x,
+      y: camera.position.y,
+      z: camera.position.z
+    }
+    controls.autoRotate = false
+    moveCameraToFlat({
+      flat: choosenFlat,
+      dist: 100,
+      time: 1000
+    }).start()
+    camera.lookAt(choosenFlat.position)
+  }
+}
+
+const backToPrev = () => {
+  controls.autoRotate = true
+  new TWEEN.Tween(camera.position)
+           .to({
+            x: cameraPos.x,
+            y: cameraPos.y,
+            z: cameraPos.z
+           }, 1000)
+           .easing(TWEEN.Easing.Exponential.InOut)
+           .start()
+  camera.lookAt(0, 0, 0)
+}
+
+
+
+// 星尘粒子
+class ParticleSystem {
+  constructor({ particleNum = 400, color = 0xffffff, radius = 500 } = {}) {
+    this.particleNum = particleNum
+    this.color = color
+    this.radius = radius
+    this.init()
+  }
+  init() {
+    const particles = new THREE.Geometry()
+    const particleMat = new THREE.PointsMaterial({
+      color: this.color,
+      size: 1,
+      blending: THREE.AdditiveBlending,
+      transparent: true,
+    })
+
+    for (let i = 0; i < this.particleNum; i++) {
+      const px = Math.random() * this.radius * 2 - this.radius
+      const py = Math.random() * this.radius * 2 - this.radius
+      const pz = Math.random() * this.radius * 2 - this.radius
+      const particle = new THREE.Vector3(px, py, pz)
+      particles.vertices.push(particle)
+    }
+    this.mesh = new THREE.Points(particles, particleMat)
+    this.mesh.sortParticles = true
+  }
+}
+
+
+// 地球
+class Earth {
+  constructor({ radius }) {
+    this.radius = radius
+    this.init()
+  }
+  init() {
+    this.mesh = new THREE.Group()
+    const innerGlobe = new THREE.Object3D()
+    innerGlobe.add(new THREE.Mesh(this.getGlobeGeo(this.radius), this.getGlobeMat({
+      color: 0x222222,
+    })))
+
+    this.drawGeoJson({
+      jsonFile: './test_geojson/countries_states.geojson',
+      color: 0x00d0ea,
+      parentMesh: innerGlobe,
+    })
+
+    const lineGlobe = new THREE.Object3D()
+    lineGlobe.add(new THREE.Mesh(this.getGlobeGeo(this.radius), this.getGlobeMat({
+      color: 0x333333,
+      wireframe: true,
+    })))
+
+    this.mesh.add(innerGlobe)
+    this.mesh.add(lineGlobe)
+  }
+  getGlobeMat({ color, wireframe = false }) {
+    return new THREE.MeshLambertMaterial({
+      color,
+      wireframe,
+    })
+  }
+  getGlobeGeo(radius) {
+    return new THREE.SphereGeometry(radius, 200, 200)
+  }
+  drawGeoJson({ jsonFile, color, shape = 'sphere', parentMesh }) {
+    $.getJSON(jsonFile, (data) => {
+      drawThreeGeo(data, 201, shape, {
+        color,
+      }, parentMesh)
+    })
+  }
+}
+
+// 粒子海洋
+class Wave {
+  constructor({numX = 100, numY = 100, dist = 20, amp = 5, particleSize = 1, geo, color} = {}) {
+    this.numX = numX
+    this.numY = numY
+    this.dist = dist
+    this.amp = amp
+    this.geo = geo
+    this.color = color
+    this.particleSize = particleSize
+    this.init()
+  }
+  init() {
+    this.mesh = new THREE.Group()
+    this.animeArray = []
+    this.animeCount = 0
+    const particleMat  = new THREE.MeshPhongMaterial({
+      color: this.color
+    })
+    const particleGeo =this.geo || this.icosahedronGeo()
+
+    for (let ix = 0; ix < this.numX; ix++) {
+      for (let iy = 0; iy < this.numY; iy++) {
+        const waveParticle = new THREE.Mesh(particleGeo, particleMat)
+        waveParticle.position.x = ix * this.dist - ((this.numX * this.dist) / 2)
+        waveParticle.position.y = iy * this.dist - ((this.numY * this.dist) / 2)
+        this.mesh.add(waveParticle)
+        this.animeArray.push(waveParticle)
+      }
+    }
+  }
+  icosahedronGeo() {
+    return new THREE.IcosahedronGeometry(this.particleSize, 0)
+  }
+  animate() {
+    let i = 0
+    for (let ix = 0; ix < this.numX; ix++) {
+      for (let iy = 0; iy < this.numY; iy++) {
+        const waveParticle = this.animeArray[i++]
+        waveParticle.position.z = (Math.sin((ix + this.animeCount) * 0.3) * this.amp) + (Math.sin((iy + this.animeCount) * 0.5) * this.amp)
+        waveParticle.scale.x = waveParticle.scale.y = waveParticle.scale.z = (Math.sin((ix + this.animeCount) * 0.3) + 1) * 0.5 + (Math.sin((iy + this.animeCount) * 0.5) + 1) * 0.5
+      }
+    }
+    this.animeCount += 0.1
+  }
+}
+// 旋木效果
+class Carousel {
+  constructor({radius = 200, flatSize = [100, 100], srcMap = []} = {}) {
+    this.flatNum = srcMap.length
+    this.flatWidth = flatSize[0]
+    this.flatHeight = flatSize[1]
+    this.radius = radius
+    this.srcMap = srcMap
+    this.init()
+  }
+  init() {
+    this.mesh = new THREE.Group()
+    for (let i = 0; i < this.flatNum; i++) {
+      const textureLoader = new THREE.TextureLoader()
+      textureLoader.load(
+        this.srcMap[i],
+        (texture) => {
+          const flatGeo = new THREE.PlaneGeometry( this.flatWidth, this.flatHeight)
+          const flatMat = new THREE.MeshBasicMaterial({
+            side: THREE.DoubleSide,
+            map: texture,
+            overdraw: 0.5,
+          })
+          const flatMesh = new THREE.Mesh(flatGeo, flatMat)
+          const px = Math.cos(i * (2 * Math.PI / this.flatNum)) * this.radius
+          const pz = Math.sin(i * (2 * Math.PI / this.flatNum)) * this.radius
+          flatMesh.position.set(px, 0, pz)
+          flatMesh.rotation.y = -( i * (2 * Math.PI / this.flatNum) - Math.PI / 2)
+
+          this.mesh.add(flatMesh)
+        }
+      )
+    }
+  }
+}
+
+let stats, camera, webGLScene, webGLRenderer, controls, particleSystem, earth, wave, carousel, raycaster, cameraPos
+
+let mouse, INTERSECTED
+const initWorld = () => {
+
+  // 创建性能监控
+  stats = new Stats()
+  stats.domElement.style.position = 'absolute'
+  stats.domElement.style.left = '0px'
+  stats.domElement.style.top = '0px'
+  config.canvas.appendChild(stats.domElement)
+
+  // 创建摄像机
+  camera = new THREE.PerspectiveCamera(75, config.width / config.height, 0.1, 10000)
+  camera.position.set(0, -50, 650)
+  camera.lookAt(0, 0, 0)
+
+  // 创建场景
+  webGLScene = new THREE.Scene()
+
+  // 创建渲染器
+  webGLRenderer = new THREE.WebGLRenderer({ antialias: true })
+  webGLRenderer.setPixelRatio(config.devicePixelRatio)
+  webGLRenderer.setSize(config.width, config.height)
+  config.canvas.appendChild(webGLRenderer.domElement)
+
+
+  // 创建控制器
+  controls = new OrbitControls(camera)
+  controls.maxPolarAngle = Math.PI / 2 * 1.1
+  controls.minPolarAngle = Math.PI / 2 * 0.6
+  controls.minDistance = 0 // camera可以走到的最近的地方
+  controls.maxDistance = 800 // camera可以走到的最远的地方
+  controls.enableDamping = true // 惯性转动
+  controls.dampingFactor = 0.2
+  controls.enablePan = false // 禁止平移
+  controls.autoRotate = true
+  controls.autoRotateSpeed = 1.0
+  // controls.enableZoom = false
+  // 加入星尘粒子
+  particleSystem = new ParticleSystem({
+    radius: 1000,
+    particleNum: 1000,
+  })
+  webGLScene.add(particleSystem.mesh)
+
+  // 加入地球
+  earth = new Earth({ radius: 200 })
+  earth.mesh.rotation.z = 0.2 * Math.PI
+  webGLScene.add(earth.mesh)
+
+  // 加入环境光
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.75)
+  webGLScene.add(ambientLight)
+
+  // 加入两极渲染光
+  const polarLight = new THREE.HemisphereLight(0x00d0ea, 0x6200DE, 1)
+  webGLScene.add(polarLight)
+
+  // 加入粒子海洋
+  wave = new Wave({
+    particleSize: 3,
+    dist: 60,
+    amp: 10
+  })
+  wave.mesh.rotation.x = -Math.PI / 2
+  wave.mesh.position.y = -250
+  webGLScene.add(wave.mesh)
+
+  // 加入旋木图形
+  carousel = new Carousel({
+    radius: 500, 
+    srcMap: config.flatSrcMap
+  })
+  webGLScene.add(carousel.mesh)
+
+  raycaster = new THREE.Raycaster()
+  mouse = new THREE.Vector2()
+
+}
+
+initWorld()
 render()
+window.addEventListener('resize', handleResize)
+document.addEventListener('click', chooseFlat)
+$('#goback').click(backToPrev)

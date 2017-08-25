@@ -1,7 +1,7 @@
 module.exports = {
     entry: [
         "babel-polyfill",
-        "./demo2.js"
+        "./demo.js"
     ],
     output: {
         path: __dirname ,

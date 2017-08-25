@@ -29,3 +29,12 @@
         height: 100px;
         width: 100px;
     }
+
+    #goback {
+        position: absolute;
+        top: 0px;
+        right: 0px;
+        color: white;
+        background: red;
+        padding: 10px;
+    }
