@@ -11,7 +11,7 @@
     }
 
 
-    .flat{
+    .flat {
         background: rgba(255, 255, 255, 0.1);
         border: 1px solid #417297;
         border-left: none;
@@ -20,7 +20,7 @@
         width: 100px;
     }
 
-     .three-div{
+    .three-div {
         background: rgba(255, 255, 255, 0.1);
         border: 1px solid #417297;
         border-left: none;
@@ -38,6 +38,27 @@
         padding: 10px;
     }
 
-    #flat01{
+    #flat01 {
         display: none;
     }
+
+
+    .insertIframe {
+        position: absolute;
+        z-index: -1;
+        opacity: 0;
+        top: 50%;
+        height: 89%;
+        width: 90%;
+        background: white;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        transition: all 1s ease;
+    }
+
+    .show{
+        opacity: 1;
+        z-index: 1000;
+    }
+
+

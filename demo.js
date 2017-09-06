@@ -2,8 +2,8 @@ import * as THREE from 'three'
 import OrbitControls from 'three-orbitcontrols'
 import $ from 'jquery'
 import { drawThreeGeo } from './libs/threeGeoJSON'
-import Stats from './libs/stats.min'
 import TWEEN from 'tween'
+import Chimee from'chimee'
 
 
 // 一些使用到的配置
@@ -12,7 +12,8 @@ const config = {
   height: window.innerHeight,
   devicePixelRatio: window.devicePixelRatio,
   canvas: document.body,
-  flatSrcMap: $('.video')
+  flatSrcMap: $('.video'),
+  flatBorderMap: ['./resource/border.png', './resource/border.png']
 }
 
 const handleResize = () => {
@@ -27,8 +28,7 @@ const render = () => {
 
   // 更新控制器
   controls.update()
-  // 更新性能监控
-  stats.update()
+
   // 更新粒子海洋动画
   wave.animate()
   // 更新缓动动画
@@ -68,18 +68,31 @@ const chooseFlat = (event) => {
       y: camera.position.y,
       z: camera.position.z
     }
+    controls.enabled = false
     controls.autoRotate = false
     moveCameraToFlat({
       flat: choosenFlat,
-      dist: 100,
+      dist: 150,
       time: 1000
     }).start()
     camera.lookAt(choosenFlat.position)
+    setTimeout(() => {
+      $('.insertIframe').attr('src', 'https://www.baidu.com')
+      $('.insertIframe').addClass('show')
+    }, 1000)
   }
 }
 
+
+const openDetail = () => {
+
+}
+
 const backToPrev = () => {
+  console.log(cameraPos)
   controls.autoRotate = true
+  controls.enabled = true
+  console.log(camera.position)
   new TWEEN.Tween(camera.position)
            .to({
             x: cameraPos.x,
@@ -89,6 +102,7 @@ const backToPrev = () => {
            .easing(TWEEN.Easing.Exponential.InOut)
            .start()
   camera.lookAt(0, 0, 0)
+  $('.insertIframe').removeClass('show')
 }
 
 
@@ -171,7 +185,7 @@ class Earth {
 
 // 粒子海洋
 class Wave {
-  constructor({numX = 100, numY = 100, dist = 20, amp = 5, particleSize = 1, geo, color} = {}) {
+  constructor({numX = 50, numY = 50, dist = 40, amp = 5, particleSize = 1, geo, color} = {}) {
     this.numX = numX
     this.numY = numY
     this.dist = dist
@@ -217,57 +231,72 @@ class Wave {
 }
 // 旋木效果
 class Carousel {
-  constructor({radius = 200, flatSize = [100, 100], srcMap = []} = {}) {
+  constructor({radius = 200, flatSize = [100, 100], srcMap = [], borderMap} = {}, ) {
     this.flatNum = srcMap.length
     this.flatWidth = flatSize[0]
     this.flatHeight = flatSize[1]
     this.radius = radius
     this.srcMap = srcMap
+    this.borderMap = borderMap
     this.init()
   }
   init() {
     this.mesh = new THREE.Group()
     for (let i = 0; i < this.flatNum; i++) {
-      const textureLoader = new THREE.TextureLoader()
-      console.log(this.srcMap[i])
-      const texture = new THREE.VideoTexture(this.srcMap[i])
-      texture.minFilter = THREE.LinearFilter;
-      texture.magFilter = THREE.LinearFilter;
-      texture.format = THREE.RGBFormat; 
-      const flatMat = new THREE.MeshLambertMaterial({
-        map: texture,
+      // 加载材质
+      const borderTexture = new THREE.TextureLoader().load(this.borderMap[i])
+      const videoTexture = new THREE.VideoTexture(this.srcMap[i])
+      videoTexture.minFilter = THREE.LinearFilter;
+      videoTexture.magFilter = THREE.LinearFilter;
+      videoTexture.format = THREE.RGBFormat; 
+      // const fontTexture = new THREE.FontLoader().load('./resource/helvetiker_regular.typeface.json')
+
+      // 创建肌理
+      const flatMat = new THREE.MeshBasicMaterial({
+        map: videoTexture,
         color: 0xffffff,
         side: THREE.DoubleSide
       })
+      const flatBorderMat = new THREE.MeshLambertMaterial({
+        map: borderTexture,
+        transparent: true,
+        side: THREE.DoubleSide,
+      })
 
+      // 创建骨骼
       const flatGeo = new THREE.PlaneGeometry( this.flatWidth, this.flatHeight)
+      const flatBorderGeo = new THREE.PlaneGeometry( this.flatWidth + 70, this.flatHeight + 80)
+
+      // 组装
+      const flatBorderMesh = new THREE.Mesh(flatBorderGeo, flatBorderMat)
       const flatMesh = new THREE.Mesh(flatGeo, flatMat)
+      flatMesh.name = 'flat' + i
+
+      // 计算位置
       const px = Math.cos(i * (2 * Math.PI / this.flatNum)) * this.radius
       const pz = Math.sin(i * (2 * Math.PI / this.flatNum)) * this.radius
       flatMesh.position.set(px, 0, pz)
+      flatBorderMesh.position.set(px, 25, pz)
       flatMesh.rotation.y = -( i * (2 * Math.PI / this.flatNum) - Math.PI / 2)
+      flatBorderMesh.rotation.y = -( i * (2 * Math.PI / this.flatNum) - Math.PI / 2)
+
+      // 放入主体中
       this.mesh.add(flatMesh)
+      this.mesh.add(flatBorderMesh)
     }
   }
 }
 
-let stats, camera, webGLScene, webGLRenderer, controls, particleSystem, earth, wave, carousel, raycaster, cameraPos, clock, flatAnime
+let camera, webGLScene, webGLRenderer, controls, particleSystem, earth, wave, carousel, raycaster, cameraPos, clock, insertDom
 
 let mouse, INTERSECTED
 const initWorld = () => {
 
   clock = new THREE.Clock()
 
-  // 创建性能监控
-  stats = new Stats()
-  stats.domElement.style.position = 'absolute'
-  stats.domElement.style.left = '0px'
-  stats.domElement.style.top = '0px'
-  config.canvas.appendChild(stats.domElement)
-
   // 创建摄像机
   camera = new THREE.PerspectiveCamera(75, config.width / config.height, 0.1, 10000)
-  camera.position.set(0, -50, 650)
+  camera.position.set(0, -50, 750)
   camera.lookAt(0, 0, 0)
 
   // 创建场景
@@ -289,9 +318,9 @@ const initWorld = () => {
   controls.enableDamping = true // 惯性转动
   controls.dampingFactor = 0.15
   controls.enablePan = false // 禁止平移
-  // controls.autoRotate = true
-  controls.autoRotateSpeed = 1.0
-  // controls.enableZoom = false
+  controls.autoRotate = true
+  controls.autoRotateSpeed = 0.3
+  controls.enableZoom = false
   // 加入星尘粒子
   particleSystem = new ParticleSystem({
     radius: 1000,
@@ -303,31 +332,41 @@ const initWorld = () => {
   earth = new Earth({ radius: 200 })
   earth.mesh.rotation.z = 0.2 * Math.PI
   webGLScene.add(earth.mesh)
-
+  
   // 加入环境光
   const ambientLight = new THREE.AmbientLight(0xffffff, 0.75)
   webGLScene.add(ambientLight)
 
-  const pointLight = new THREE.PointLight(0x2d5ebd, 10, 500, 1)
-  // pointLight.add(new THREE.Mesh(new THREE.SphereGeometry( 10, 16, 8 ), new THREE.MeshBasicMaterial( { color: 0xff0000} )))
-  pointLight.position.set(240, 240, 0)
-  webGLScene.add( pointLight);
+ 
+
+  const spotlight1 = new THREE.SpotLight(0x016bef, 3, 1000)
+  spotlight1.position.set(-400,-200,0)
+  webGLScene.add(spotlight1);
+
+
+  const spotlight2 = new THREE.SpotLight(0x016bef, 3, 1000)
+  spotlight1.castShadow = true
+  spotlight2.position.set(400,100,0)
+  webGLScene.add(spotlight2)
 
   // 加入粒子海洋
   wave = new Wave({
     particleSize: 3,
-    dist: 60,
-    amp: 10
+    dist: 100,
+    amp: 10,
+    color: 0x9AA8FF,
   })
   wave.mesh.rotation.x = -Math.PI / 2
   wave.mesh.position.y = -250
+  wave.receiveShadow = true
   webGLScene.add(wave.mesh)
 
   // 加入旋木图形
   carousel = new Carousel({
     radius: 500, 
     srcMap: config.flatSrcMap,
-    flatSize: [192, 108]
+    flatSize: [192, 108],
+    borderMap: config.flatBorderMap,
   })
   webGLScene.add(carousel.mesh)
 
@@ -336,8 +375,8 @@ const initWorld = () => {
 
 }
 
-initWorld()
-render()
-window.addEventListener('resize', handleResize)
-document.addEventListener('click', chooseFlat)
-$('#goback').click(backToPrev)
+// initWorld()
+// render()
+// window.addEventListener('resize', handleResize)
+// document.addEventListener('click', chooseFlat)
+// $('#goback').click(backToPrev)

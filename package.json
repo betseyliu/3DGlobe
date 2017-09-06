@@ -9,18 +9,23 @@
   "author": "Betsey LIU",
   "license": "ISC",
   "dependencies": {
+    "chimee": "^0.3.0",
+    "chimee-player": "0.0.4",
     "jquery": "^3.2.1",
+    "requirejs": "^2.3.5",
     "stats-js": "^1.0.0-alpha1",
     "three": "^0.87.1",
     "three-orbitcontrols": "^1.2.1",
     "tween": "^0.9.0"
   },
   "devDependencies": {
-    "babel-polyfill": "^6.26.0",
     "babel-core": "^6.26.0",
     "babel-loader": "^7.1.2",
+    "babel-polyfill": "^6.26.0",
     "babel-preset-es2015": "^6.24.1",
+    "json-loader": "^0.5.7",
     "webpack": "^3.5.5",
-    "webpack-dev-server": "^2.7.1"
+    "webpack-dev-server": "^2.7.1",
+    "webpack-glsl-loader": "^1.0.1"
   }
 }
